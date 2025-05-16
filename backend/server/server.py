@@ -8,7 +8,12 @@ from tools import serialize,dserialize
 from service import Service
 import time
 
-class BaseServer:
+class Server:
+    '''
+    Server
+
+    server implementation
+    '''
     _services = {}
     _addr = None
     _server = None
@@ -27,7 +32,7 @@ class BaseServer:
         self._max_clients = max_clients
         self._services = {}
         self._clients_process = []
-        threading.Thread(target=self._kill_deads_clients_threads,daemon=True).start()
+        threading.Thread(target=self._kill_deads_clients_threads,daemon=True,name="Thread Cleaner").start()
         pass
     
     def _filt_request(self,request:Request):
@@ -40,7 +45,7 @@ class BaseServer:
         if not check:
             return {
                 'Status': Status.ERROR,
-                'Status Message':msg
+                'StatusMessage':msg
             }
         for service in self._services.values():
             operations = [s[0] for s in service.services]
@@ -49,7 +54,7 @@ class BaseServer:
             pass
         return {
             'Status':Status.ERROR,
-            'Status Message':f'No handler implemented for operation <{request.Operation}>'
+            'StatusMessage':f'No handler implemented for operation <{request.Operation}>'
         }
 
     def _process_client_in_background(self,conn:socket.socket):
@@ -78,25 +83,12 @@ class BaseServer:
         self._server.listen(self._max_clients)
 
         while True:
-            conn,_ = self._server.accept()
-            thread = threading.Thread(target=self._process_client_in_background,daemon=True,args=(conn,))
-            self._clients_process.append(thread)
+            conn,addr = self._server.accept()
+            thread = threading.Thread(name=f"client at {addr} request process",target=self._process_client_in_background,daemon=True,args=(conn,))
             thread.start()        
+            self._clients_process.append(thread)
             pass
 
-        pass
-
-    pass
-
-class Server(BaseServer):
-    '''
-    Server
-
-    server implementation
-    '''
-
-    def __init__(self,host:str,port:int,max_clients:int):
-        super().__init__(host,port,max_clients)
         pass
 
     def __setitem__(self,item:str,value:Service):

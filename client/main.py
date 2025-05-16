@@ -10,7 +10,7 @@ request = json.dumps({
     'protocol':'tcp',
     'Operation': 'STRING_PONDERATION',
     'Body':{
-        'text':'uiwefw ewow ewiugf 230743b dwueig'
+        'text':'uiwefw ewow ewiugf 230743b dwaAueig'
     }
 })
 
