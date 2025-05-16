@@ -1,4 +1,7 @@
-from protocol import Status
+from server import Server
+from service import WordPonderationService
 
-a = Status.OK
-print(a)
+server = Server('localhost',8080,1)
+server['ponderation'] = WordPonderationService
+
+server.run()

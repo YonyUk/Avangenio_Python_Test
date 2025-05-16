@@ -49,7 +49,7 @@ class Request(BaseRequest):
                 pass
             except Exception as ex:
                 raise Exception("The 'Body' most be serializable")
-        if type(value) != int and type(value) != str:
+        elif type(value) != int and type(value) != str:
             raise Exception("All the properties most be serializables")
         super()._attributes[attr] = value
         pass

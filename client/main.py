@@ -8,7 +8,10 @@ client.connect(('localhost',8080))
 request = json.dumps({
     'url':'http://localhost:8080',
     'protocol':'tcp',
-    'Operation': 'IDLE'
+    'Operation': 'STRING_PONDERATION',
+    'Body':{
+        'text':'uiwefw ewow ewiugf 230743b dwueig'
+    }
 })
 
 client.sendall(bytes(request,'utf-8'))

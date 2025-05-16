@@ -23,7 +23,7 @@ class Service:
 
     def AddHandler(self,operation:ServerOperation,handler):
         '''
-        handler: function that will response to the specified operation
+        handler: function that will response to the specified operation, the input argument must be <Request> type
         '''
         if type(operation) != ServerOperation:
             raise Exception("'operation' must be member of <enum 'ServerOperation'>")

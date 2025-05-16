@@ -2,7 +2,7 @@ from enum import Enum
 
 class ServerOperation(str,Enum):
 
-    IDLE = 'IDLE'
+    PONDERATION = 'STRING_PONDERATION'
 
     def __str__(self):
         return str(self.value)
