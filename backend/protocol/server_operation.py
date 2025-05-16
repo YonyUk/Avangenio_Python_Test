@@ -1,6 +1,8 @@
 from enum import Enum
 
-class ServerOperation(int,Enum):
+class ServerOperation(str,Enum):
+
+    IDLE = 'IDLE'
 
     def __str__(self):
         return str(self.value)

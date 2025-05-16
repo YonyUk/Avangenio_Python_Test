@@ -7,7 +7,10 @@ client.connect(('localhost',8080))
 
 request = json.dumps({
     'url':'http://localhost:8080',
-    'protocol':'tcp'
+    'protocol':'tcp',
+    'Operation': 'IDLE'
 })
 
 client.sendall(bytes(request,'utf-8'))
+response = json.loads(client.recv(1024).decode())
+print(response)
