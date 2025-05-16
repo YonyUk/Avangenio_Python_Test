@@ -7,6 +7,9 @@ from protocol import ServerOperation,Request,Status
 from tools import serialize,dserialize
 from service import Service
 import time
+import logging
+
+logging.basicConfig(level=logging.DEBUG,format='%(asctime)s [%(threadName)s] %(levelname)s: %(message)s')
 
 class Server:
     '''
@@ -101,6 +104,9 @@ class Server:
         self._server.bind(self._addr)
         self._server.listen(self._max_clients)
 
+        logging.info(f'server running at {self._addr}')
+        logging.info(f'max clients allowed in concurrency: {self._max_clients}')
+        logging.info(f'buffer size: {self._buffer_size}')
         while True:
             conn,addr = self._server.accept()
             thread = threading.Thread(name=f"client at {addr} request process",target=self._process_client_in_background,daemon=True,args=(conn,))
