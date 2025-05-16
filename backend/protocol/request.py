@@ -13,7 +13,6 @@ class BaseRequest:
     '''
     _attributes = {}
 
-    @property
     def headers(self):
         '''
         the headers inside this request
@@ -31,11 +30,15 @@ class Request(BaseRequest):
     '''
 
     def __getattr__(self,attr):
+        if attr == 'headers':
+            return super().headers()
         if attr in super()._attributes.keys():
             return super()._attributes[attr]
         return None
     
     def __setattr__(self,attr,value):
+        if attr == 'headers':
+            raise Exception("Field 'headers' is readonly")
         if attr == 'Status':
             raise Exception("There's not exists the property 'Status' for this class")
         if attr == 'Body':
@@ -50,5 +53,15 @@ class Request(BaseRequest):
             raise Exception("All the properties most be serializables")
         super()._attributes[attr] = value
         pass
+
+    def __str__(self):
+        result = '{\n'
+        for key in super().headers():
+            result += f'\t{key}:{self._attributes[key]}\n'
+            pass
+        return result + '}'
+
+    def __repr__(self):
+        return str(self)
 
     pass
