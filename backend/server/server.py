@@ -6,6 +6,7 @@ import threading
 from protocol import ServerOperation,ToRequest,Request,ToResponse,Status
 from tools import serialize,dserialize
 from service import Service
+import time
 
 class BaseServer:
     _services = {}
@@ -25,6 +26,8 @@ class BaseServer:
         self._server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         self._max_clients = max_clients
         self._services = {}
+        self._clients_process = []
+        threading.Thread(target=self._kill_deads_clients_threads,daemon=True).start()
         pass
     
     def _filt_request(self,request:Request):
@@ -49,6 +52,24 @@ class BaseServer:
             'Status Message':f'No handler implemented for operation <{request.Operation}>'
         }
 
+    def _process_client_in_background(self,conn:socket.socket):
+        request = ToRequest(**dserialize(conn.recv(1024)))
+        response = self._handle_request(request)
+        conn.sendall(serialize(**response))           
+        conn.close()
+        pass
+
+    def _kill_deads_clients_threads(self):
+        while True:
+            deads_threads = [t for t in self._clients_process if not t.is_alive()]
+            self._clients_process = [t for t in self._clients_process if t.is_alive()]
+            for t in deads_threads:
+                t.join()
+                pass
+            time.sleep(0.5)
+            pass
+
+
     def run(self):
         '''
         run the server
@@ -58,10 +79,9 @@ class BaseServer:
 
         while True:
             conn,_ = self._server.accept()
-            request = ToRequest(**dserialize(conn.recv(1024)))
-            response = self._handle_request(request)
-            conn.sendall(serialize(**response))           
-            conn.close()
+            thread = threading.Thread(target=self._process_client_in_background,daemon=True,args=(conn,))
+            self._clients_process.append(thread)
+            thread.start()        
             pass
 
         pass
