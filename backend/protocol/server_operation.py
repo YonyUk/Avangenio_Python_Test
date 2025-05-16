@@ -4,7 +4,7 @@ class ServerOperation(str,Enum):
 
     PONDERATION = 'STRING_PONDERATION'
 
-    START_FILE_PROCESS = 'START_FILE_PROCESS'
+    SPECIFICATIONS = 'SERVER_SPECIFICATIONS'
     
     def __str__(self):
         return str(self.value)

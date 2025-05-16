@@ -1,5 +1,6 @@
 {
     "HOST":"localhost",
     "PORT":8080,
-    "MAX_CLIENTS":10
+    "max_clients":10,
+    "buffer_size":4096
 }

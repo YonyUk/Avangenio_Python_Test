@@ -1,2 +1,3 @@
 from .service import Service
 from .ponderation_service import WordPonderationService
+from .specifications_service import SpecificationsService

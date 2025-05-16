@@ -17,19 +17,27 @@ class Server:
     _services = {}
     _addr = None
     _server = None
-    _max_clients = 0
+    _max_clients = 1
+    _buffer_size = 1024
     
-    def __init__(self,host:str,port:int,max_clients:int):
+    def __init__(self,host:str,port:int,**server_options):
         if type(host) != str:
             raise Exception('host must be string')
         if type(port) != int:
             raise Exception('port must be integer')
-        if type(max_clients) != int:
-            raise Exception('max_clients must be integer')
         self._addr = host,port
         self._server = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self._server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        self._max_clients = max_clients
+        if 'max_clients' in server_options.keys():
+            if type(server_options['max_clients']) != int:
+                raise Exception('max_clients must be integer')
+            self._max_clients = server_options['max_clients']
+            pass
+        if 'buffer_size' in server_options.keys():
+            if type(server_options['buffer_size']) != int or server_options['buffer_size'] < 1:
+                raise ValueError('<buffer_size> property must be an integer greather than 0')
+            self._buffer_size = server_options['buffer_size']
+            pass
         self._services = {}
         self._clients_process = []
         threading.Thread(target=self._kill_deads_clients_threads,daemon=True,name="Thread Cleaner").start()
@@ -58,7 +66,18 @@ class Server:
         }
 
     def _process_client_in_background(self,conn:socket.socket):
-        request = Request(**dserialize(conn.recv(1024)))
+        data = b''
+        conn.setblocking(False)
+        temp = conn.recv(self._buffer_size)
+        while temp != b'':
+            data += temp
+            try:
+                temp = conn.recv(self._buffer_size)
+                pass
+            except BlockingIOError as ex:
+                break
+            pass
+        request = Request(**dserialize(data))
         response = self._handle_request(request)
         conn.sendall(serialize(**response))           
         conn.close()
