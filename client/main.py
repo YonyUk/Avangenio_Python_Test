@@ -1,0 +1,13 @@
+import socket
+import json
+
+client = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+client.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
+client.connect(('localhost',8080))
+
+request = json.dumps({
+    'url':'http://localhost:8080',
+    'protocol':'tcp'
+})
+
+client.sendall(bytes(request,'utf-8'))

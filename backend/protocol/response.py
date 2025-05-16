@@ -55,7 +55,7 @@ class Response(BaseResponse):
         pass
 
     def __str__(self):
-            result = '{\n'
+        result = '{\n'
         for key in super().headers():
             result += f'\t{key}:{self._attributes[key]}\n'
             pass
