@@ -29,6 +29,14 @@ class Response(BaseResponse):
     response implementation
     '''
 
+    def __init__(self,**headers):
+        if not 'Status' in headers.keys():
+            raise Exception('<Response> must have a "Status" field')
+        for key in headers.keys():
+            super()._attributes[key] = headers[key]
+            pass
+        pass
+
     def __getattr__(self,attr):
         if attr == 'headers':
             return super().headers()

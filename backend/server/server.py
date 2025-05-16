@@ -3,7 +3,7 @@ server
 '''
 import socket
 import threading
-from protocol import ServerOperation,ToRequest,Request,ToResponse,Status
+from protocol import ServerOperation,Request,Status
 from tools import serialize,dserialize
 from service import Service
 import time
@@ -58,7 +58,7 @@ class Server:
         }
 
     def _process_client_in_background(self,conn:socket.socket):
-        request = ToRequest(**dserialize(conn.recv(1024)))
+        request = Request(**dserialize(conn.recv(1024)))
         response = self._handle_request(request)
         conn.sendall(serialize(**response))           
         conn.close()
