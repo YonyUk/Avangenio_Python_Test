@@ -91,7 +91,7 @@ class RegexGenerator:
         if value == CATEGORY_DIGIT:
             return random.choice(string.digits)
         if value == CATEGORY_WORD:
-            return random.choice(string.ascii_letters)
+            return random.choice(string.ascii_letters+string.digits)
         if value == CATEGORY_SPACE:
             return random.choice(string.whitespace)
         return ''
