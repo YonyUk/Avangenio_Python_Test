@@ -1,16 +1,23 @@
 import tkinter as tk
+from tkinter import ttk
 from tkinter import filedialog
 from core import StringGenerator,writefile
 from visual.appconfig import AppConfig
 from tkinter import messagebox
-from threading import Thread
+from threading import Thread,Lock
+import time
 
 class MainWindow(tk.Tk):
 
     _writing = False
-    
+    _process = None
+    _progress_bar = None
+    _lock = Lock()
+    _strings = ''
+
     def __init__(self,config:AppConfig,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        Thread(target=lambda:self._check_writing_process(),daemon=True).start()
         self._generator = config.Generator
         self.geometry(config.size if config.size != None else '800x600')
         self.title('MainView')
@@ -89,34 +96,83 @@ class MainWindow(tk.Tk):
 
     def _save_file(self,path=''):
         if not self._validate_params():
-            messagebox.showerror('Invalid arguments','<Min chars count> must be less or equal to <Max chars count>')
+            messagebox.showerror('Invalid arguments','<Min chars count> must be less than <Max chars count>')
             pass
         else:
             self._generator.min_length = self._min_chars_count.get()
-            self._generator.max_length = self._max_chars_count.get()        
-            with filedialog.askopenfile(mode='w') as file:
-                Thread(daemon=True,target=lambda:self._write_strings(file.name)).start()   
-                pass
+            self._generator.max_length = self._max_chars_count.get()
+            file = filedialog.asksaveasfilename()
+            self._progress_bar = ttk.Progressbar(
+                self,
+                orient=tk.HORIZONTAL,
+                mode='determinate',
+                length=300,
+                maximum=self._lines_count.get()
+            )   
+            self._progress_bar.pack(side=tk.TOP)
+            self._process = Thread(target=lambda:self._write_strings(file),daemon=True)
+            self._process.start()
             pass
         pass
 
     def _validate_params(self):
-        return self._min_chars_count.get() <= self._max_chars_count.get()
+        return self._min_chars_count.get() < self._max_chars_count.get()
+
+    def _generate_strings(self,count:int):
+        print('hebra comenzada')
+        text = ''
+        for string in self._generator.GenerateStrings(count):
+            text += string + '\n'
+            pass
+        print('hebra terminada')
+        self._lock.acquire()
+        self._strings += text
+        self._lock.release()
+        
 
     def _write_strings(self,file:str):
         self._writing = True
         text = ''
-        for string in self._generator.GenerateStrings(self._lines_count.get()):
-            text += string + '\n'
+        threads = []
+        for _ in range(self._lines_count.get() // 10000):
+            threads.append(Thread(target=lambda:self._generate_strings(10000),daemon=True))
             pass
+        threads.append(Thread(target=lambda:self._generate_strings(self._lines_count.get() - (self._lines_count.get() // 10000) * 10000)))
+        for t in threads:
+            t.start()
+            pass
+
+        for t in threads:
+            t.join()
+            pass
+
+            # if self._progress_bar != None:
+                #     self._progress_bar.step(1)
+            #     pass
         text = text[:len(text) - 1]
         writefile(file,text)
         self._writing = False
+        self._progress_bar.destroy()
+        self._progress_bar = None
+        pass
+
+    def _check_writing_process(self):
+        while True:
+            if self._process != None and not self._process.is_alive():
+                self._process.join()
+                self._process = None
+                pass
+            time.sleep(1)
+            pass
         pass
 
     def _on_close(self):
         if self._writing:
             if messagebox.askyesno('Salir','Desea detener el proceso de escritura?'):
+                if self._progress_bar != None:
+                    self._progress_bar.destroy()
+                    self._progress_bar = None
+                    pass
                 self.destroy()
                 pass
             pass
