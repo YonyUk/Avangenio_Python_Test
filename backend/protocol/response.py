@@ -6,22 +6,6 @@ Implementation for the response abstraction for the communication bettwen the se
 '''
 import json
 
-class BaseResponse:
-    '''
-    BaseResponse
-
-    base class for the response
-    '''
-    _attributes = {}
-
-    def headers(self):
-        '''
-        the headers inside this response
-        '''
-        return self._attributes.keys()
-
-    pass
-
 class Response(BaseResponse):
     '''
     Response
@@ -29,19 +13,21 @@ class Response(BaseResponse):
     response implementation
     '''
 
+    _attributes = {}
+
     def __init__(self,**headers):
         if not 'Status' in headers.keys():
             raise Exception('<Response> must have a "Status" field')
         for key in headers.keys():
-            super()._attributes[key] = headers[key]
+            self._attributes[key] = headers[key]
             pass
         pass
 
     def __getattr__(self,attr):
         if attr == 'headers':
-            return super().headers()
-        if attr in super()._attributes.keys():
-            return super()._attributes[attr]
+            return self.headers()
+        if attr in self._attributes.keys():
+            return self._attributes[attr]
         return None
     
     def __setattr__(self,attr,value):
@@ -59,17 +45,23 @@ class Response(BaseResponse):
                 raise Exception("The 'Body' most be serializable")
         if type(value) != int and type(value) != str:
             raise Exception("All the properties most be serializables")
-        super()._attributes[attr] = value
+        self._attributes[attr] = value
         pass
 
     def __str__(self):
         result = '{\n'
-        for key in super().headers():
+        for key in self.headers():
             result += f'\t{key}:{self._attributes[key]}\n'
             pass
         return result + '}'
 
     def __repr__(self):
         return str(self)
+
+    def headers(self):
+        '''
+        the headers inside this response
+        '''
+        return self._attributes.keys()
 
     pass
