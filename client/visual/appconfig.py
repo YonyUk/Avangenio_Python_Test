@@ -23,6 +23,14 @@ class AppConfig(Configurable):
             raise ValueError('The value of param \'min_chars\' must be int')
         if type(kwargs['max_chars']) != int:
             raise ValueError('The value of param \'max_chars\' must be int')
+        if not 'host' in kwargs.keys():
+            raise Exception('No given value for the param \'host\'')
+        if not 'port' in kwargs.keys():
+            raise Exception('No given value for the param \'port\'')
+        if type(kwargs['host']) != str:
+            raise ValueError('The value of param \'host\' must be str')
+        if type(kwargs['port']) != int:
+            raise ValueError('The value of param \'port\' must be int')
         super().__init__(**kwargs)
         pass
 

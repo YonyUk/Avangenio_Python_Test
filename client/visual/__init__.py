@@ -5,7 +5,7 @@ from .appconfig import AppConfig
 class App:
 
     def __init__(self,**config):
-        self._config = AppConfig(**config)
+        self._config = AppConfig(**config['app'])
         pass
 
     def run(self):

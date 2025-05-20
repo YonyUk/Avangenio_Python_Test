@@ -31,20 +31,18 @@
 # print(response)
 
 from visual import App
-from core import StringGenerator
-from multiprocessing import freeze_support
-import sys
+import os
+import json
 
 if __name__ == '__main__':
-    freeze_support()
-    
-    pattern = '\w+[ ]'*3+'\w+[ ]?'*2+'\w+'
 
-    app = App(
-        pattern=pattern,
-        min_chars=50,
-        max_chars=100,
-        size='1000x600'
-    )
+    config = None
+    if os.path.exists('config.json'):
+        with open('config.json','r') as reader:
+            config = json.loads(reader.read())
+            pass
+        pass
+
+    app = App(**config)
 
     app.run()

@@ -10,6 +10,7 @@ import signal
 from core import removefile,StringGenerator
 from multiprocessing import Value,Process,Lock,cpu_count,Array
 import time
+import re
 
 class MainWindow(tk.Tk):
 
@@ -26,98 +27,164 @@ class MainWindow(tk.Tk):
     def __init__(self,config:AppConfig,*args,**kwargs):
         super().__init__(*args,**kwargs)
         self._pattern = config.pattern
-        self.geometry(config.size if config.size != None else '800x600')
-        self.title('MainView')
+        if 'size' in config.interface.keys():
+            self.geometry(f'{config.interface["size"]}')
+            pass
+
+        if 'window' in config.interface.keys():
+            self.configure(**config.interface['window'])
+            pass
+
+        self.title('Vista Principal')
         self.protocol('WM_DELETE_WINDOW',lambda:self._on_close())
         
         # container for the params controls
         self._params_box = tk.Frame(self)
+        in_bg = None
+        in_fg = None
+        if 'input_bg' in config.interface.keys():
+            in_bg = config.interface['input_bg']
+            pass
+        if 'input_fg' in config.interface.keys():
+            in_fg = config.interface['input_fg']
+            pass
+        if 'input_controls' in config.interface.keys():
+            self._params_box.configure(**config.interface['input_controls'])
+            pass
         self._params_box.pack(side=tk.TOP,pady=50)
 
         # container for the count of lines to write in the file
         self._string_lines_count_input_box = tk.Frame(self._params_box)
+        if 'input_controls' in config.interface.keys():
+            self._string_lines_count_input_box.configure(**config.interface['input_controls'])
+            pass
         self._string_lines_count_input_box.pack(side=tk.LEFT,padx=30)
 
         # lines
         self._lines_count = tk.IntVar(self._string_lines_count_input_box)
         self._lines_count.set(1000000)
-        self._string_input_label = tk.Label(self._string_lines_count_input_box,text='Lines')
+        self._string_input_label = tk.Label(self._string_lines_count_input_box,text='Cantidad de cadenas')
+        if 'input_controls' in config.interface.keys():
+            self._string_input_label.configure(**config.interface['input_controls'])
+            pass
         self._string_input_label.pack(side=tk.TOP)
         self._string_count_input = tk.Spinbox(
             self._string_lines_count_input_box,
             from_=config.min_lines if config.min_lines != None else 10,
             to=config.max_lines if config.max_lines != None else 2000000,
             increment=config.lines_increment if config.lines_increment != None else 1000,
-            textvariable=self._lines_count
+            textvariable=self._lines_count,
+            bg=in_bg if in_bg != None else self.cget('bg'),
+            fg=in_fg if in_fg != None else self.cget('fg')
         )
         self._string_count_input.pack(side=tk.BOTTOM)
 
         # container for the min count of characters
         self._min_chars_count_input_box = tk.Frame(self._params_box)
+        if 'input_controls' in config.interface.keys():
+            self._min_chars_count_input_box.configure(**config.interface['input_controls'])
+            pass
         self._min_chars_count_input_box.pack(side=tk.LEFT,padx=30)
 
         # min count characters
         self._min_chars_count = tk.IntVar(self._min_chars_count_input_box)
         self._min_chars_count.set(config.min_chars)
-        self._min_char_count_label = tk.Label(self._min_chars_count_input_box,text='Min count characters')
+        self._min_char_count_label = tk.Label(self._min_chars_count_input_box,text='Min. caracteres')
+        if 'input_controls' in config.interface.keys():
+            self._min_char_count_label.configure(**config.interface['input_controls'])
+            pass
         self._min_char_count_label.pack(side=tk.TOP)
         self._min_chars_count_input = tk.Spinbox(
             self._min_chars_count_input_box,
             from_=config.min_chars,
             to=config.max_chars,
             increment=config.chars_increment if config.chars_increment != None else 10,
-            textvariable=self._min_chars_count
+            textvariable=self._min_chars_count,
+            bg=in_bg if in_bg != None else self.cget('bg'),
+            fg=in_fg if in_fg != None else self.cget('fg')
         )
         self._min_chars_count_input.pack(side=tk.BOTTOM)
 
         # container for the max count of characters
         self._max_chars_count_input_box = tk.Frame(self._params_box)
+        if 'input_controls' in config.interface.keys():
+            self._max_chars_count_input_box.configure(**config.interface['input_controls'])
+            pass
         self._max_chars_count_input_box.pack(side=tk.LEFT,padx=30)
 
         # max count characters
         self._max_chars_count = tk.IntVar(self._max_chars_count_input_box)
         self._max_chars_count.set(config.max_chars)
-        self._max_chars_count_label = tk.Label(self._max_chars_count_input_box,text='Max count characters')
+        self._max_chars_count_label = tk.Label(self._max_chars_count_input_box,text='Max. caracteres')
+        if 'input_controls' in config.interface.keys():
+            self._max_chars_count_label.configure(**config.interface['input_controls'])
+            pass
         self._max_chars_count_label.pack(side=tk.TOP)
         self._max_chars_count_input = tk.Spinbox(
             self._max_chars_count_input_box,
             from_=config.min_chars,
             to=config.max_chars,
             increment=config.chars_increment if config.chars_increment != None else 10,
-            textvariable=self._max_chars_count
+            textvariable=self._max_chars_count,
+            bg=in_bg if in_bg != None else self.cget('bg'),
+            fg=in_fg if in_fg != None else self.cget('fg')
         )
         self._max_chars_count_input.pack(side=tk.BOTTOM,padx=30)
 
         # container for the cpus to use
         self._cpus_count_input_box = tk.Frame(self._params_box)
+        if 'input_controls' in config.interface.keys():
+            self._cpus_count_input_box.configure(**config.interface['input_controls'])
+            pass
         self._cpus_count_input_box.pack(side=tk.LEFT,padx=30)
 
         # cpu input
         self._cpu_count = tk.IntVar(self._cpus_count_input_box)
         self._cpu_count.set(config.cpu if config.cpu != None else 1)
-        self._cpu_count_label = tk.Label(self._cpus_count_input_box,text='processes by cpu to use')
+        self._cpu_count_label = tk.Label(self._cpus_count_input_box,text='Procesos por nucleo')
+        if 'input_controls' in config.interface.keys():
+            self._cpu_count_label.configure(**config.interface['input_controls'])
+            pass
         self._cpu_count_label.pack(side=tk.TOP)
         self._cpu_count_input = tk.Spinbox(
             self._cpus_count_input_box,
             from_=1,
             to=config.max_cpu if config.max_cpu != None else 5,
             increment=1,
-            textvariable=self._cpu_count
+            textvariable=self._cpu_count,
+            bg=in_bg if in_bg != None else self.cget('bg'),
+            fg=in_fg if in_fg != None else self.cget('fg')
         )
         self._cpu_count_input.pack(side=tk.BOTTOM,padx=30)
 
         # controls for the app
         self._buttons_box = tk.Frame(self)
+        if 'buttons_controls' in config.interface.keys() and 'container' in config.interface['buttons_controls'].keys():
+            self._buttons_box.configure(**config.interface['buttons_controls']['container'])
+            pass
         self._buttons_box.pack(side=tk.BOTTOM,pady=50)
 
-        self._file_generator_btn = tk.Button(self._buttons_box,text='generate random file',command=lambda:self._save_file())
-        self._stop_generation_btn = tk.Button(self._buttons_box,text='Stop file generation',command=lambda:self._stop_file_generation())
+        self._file_generator_btn = tk.Button(self._buttons_box,text='Generar fichero',command=lambda:self._save_file())
+        self._stop_generation_btn = tk.Button(self._buttons_box,text='Detener generacion',command=lambda:self._stop_file_generation())
+        self._send_file_btn = tk.Button(self._buttons_box,text='Enviar fichero',command=lambda:self._send_file())
+
+        if 'buttons_controls' in config.interface.keys() and 'buttons' in config.interface['buttons_controls'].keys():
+            self._file_generator_btn.configure(**config.interface['buttons_controls']['buttons'])
+            self._stop_generation_btn.configure(**config.interface['buttons_controls']['buttons'])
+            self._send_file_btn.configure(**config.interface['buttons_controls']['buttons'])
+            pass
 
         self._file_generator_btn.pack(side=tk.LEFT,pady=10,padx=10)
         self._stop_generation_btn.pack(side=tk.LEFT,padx=10,pady=10)
-
+        self._send_file_btn.pack(side=tk.LEFT,padx=10,pady=10)
+        
         self.mainloop()
 
+        pass
+
+    def _send_file(self):
+        file = filedialog.askopenfilename()
+        print(file)
         pass
 
     def _check_writing_process(self):
@@ -307,5 +374,21 @@ class MainWindow(tk.Tk):
             self.destroy()
             pass
         pass
+
+    def _get_color_from_text(self,text:str):
+        if text.lower().startswith('rgb'):
+            r,g,b = re.findall('\d+',text)
+            return self._rgb_to_hex(int(r),int(g),int(b))
+        return text
+
+    def _rgb_to_hex(self,r:int,g:int,b:int):
+        exception_msg = 'the values most be in range 0-255'
+        if r < 0 or r > 255:
+            raise ValueError(exception_msg)
+        if g < 0 or g > 255:
+            raise ValueError(exception_msg)
+        if b < 0 or b > 255:
+            raise ValueError(exception_msg)
+        return f'#{r:02x}{g:02x}{b:02x}'
 
     pass
