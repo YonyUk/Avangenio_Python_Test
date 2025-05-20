@@ -11,10 +11,18 @@ class AppConfig(Configurable):
     ''' 
     
     def __init__(self,**kwargs):
-        if not 'Generator' in kwargs.keys():
-            raise Exception('No given value for the param \'Generator\'')
-        if not isinstance(kwargs['Generator'],StringGenerator):
-            raise ValueError('The value of param \'Generator\' must be a StringGenerator-like object')
+        if not 'pattern' in kwargs.keys():
+            raise Exception('No given value for the param \'pattern\'')
+        if type(kwargs['pattern']) != str:
+            raise ValueError('The value of param \'pattern\' must be str')
+        if not 'min_chars' in kwargs.keys():
+            raise Exception('No given value for the param \'min_chars\'')
+        if not 'max_chars' in kwargs.keys():
+            raise Exception('No given value for the param \'max_chars\'')
+        if type(kwargs['min_chars']) != int:
+            raise ValueError('The value of param \'min_chars\' must be int')
+        if type(kwargs['max_chars']) != int:
+            raise ValueError('The value of param \'max_chars\' must be int')
         super().__init__(**kwargs)
         pass
 

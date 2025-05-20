@@ -1,2 +1,2 @@
-from .filesystem import writefile,readfile
+from .filesystem import writefile,readfile,removefile
 from .generator import StringGenerator

@@ -1,28 +1,28 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
-from core import StringGenerator,writefile
 from visual.appconfig import AppConfig
 from tkinter import messagebox
-from threading import Thread,Lock
-import time
+import sys
+import subprocess
+import os
+import platform
+import signal
+from core import removefile
 
 class MainWindow(tk.Tk):
 
-    _writing = False
-    _process = None
     _progress_bar = None
-    _lock = Lock()
-    _strings = ''
+    _subprocess = None
+    _writing = False
+    _file = ''
 
     def __init__(self,config:AppConfig,*args,**kwargs):
         super().__init__(*args,**kwargs)
-        Thread(target=lambda:self._check_writing_process(),daemon=True).start()
-        self._generator = config.Generator
+        self._pattern = config.pattern
         self.geometry(config.size if config.size != None else '800x600')
         self.title('MainView')
         self.protocol('WM_DELETE_WINDOW',lambda:self._on_close())
-
         # container for the params controls
         self._params_box = tk.Frame(self)
         self._params_box.pack(side=tk.TOP,pady=50)
@@ -51,13 +51,13 @@ class MainWindow(tk.Tk):
 
         # min count characters
         self._min_chars_count = tk.IntVar(self._min_chars_count_input_box)
-        self._min_chars_count.set(50)
+        self._min_chars_count.set(config.min_chars)
         self._min_char_count_label = tk.Label(self._min_chars_count_input_box,text='Min count characters')
         self._min_char_count_label.pack(side=tk.TOP)
         self._min_chars_count_input = tk.Spinbox(
             self._min_chars_count_input_box,
-            from_=config.min_chars if config.min_chars != None else 10,
-            to=config.max_chars if config.max_chars != None else 1000,
+            from_=config.min_chars,
+            to=config.max_chars,
             increment=config.chars_increment if config.chars_increment != None else 10,
             textvariable=self._min_chars_count
         )
@@ -69,110 +69,116 @@ class MainWindow(tk.Tk):
 
         # max count characters
         self._max_chars_count = tk.IntVar(self._max_chars_count_input_box)
-        self._max_chars_count.set(50)
+        self._max_chars_count.set(config.max_chars)
         self._max_chars_count_label = tk.Label(self._max_chars_count_input_box,text='Max count characters')
         self._max_chars_count_label.pack(side=tk.TOP)
         self._max_chars_count_input = tk.Spinbox(
             self._max_chars_count_input_box,
-            from_=config.min_chars if config.min_chars != None else 10,
-            to=config.max_chars if config.max_chars != None else 1000,
+            from_=config.min_chars,
+            to=config.max_chars,
             increment=config.chars_increment if config.chars_increment != None else 10,
             textvariable=self._max_chars_count
         )
         self._max_chars_count_input.pack(side=tk.BOTTOM,padx=30)
 
+        # container for the cpus to use
+        self._cpus_count_input_box = tk.Frame(self._params_box)
+        self._cpus_count_input_box.pack(side=tk.LEFT,padx=30)
+
+        # cpu input
+        self._cpu_count = tk.IntVar(self._cpus_count_input_box)
+        self._cpu_count.set(config.cpu if config.cpu != None else 1)
+        self._cpu_count_label = tk.Label(self._cpus_count_input_box,text='processes by cpu to use')
+        self._cpu_count_label.pack(side=tk.TOP)
+        self._cpu_count_input = tk.Spinbox(
+            self._cpus_count_input_box,
+            from_=1,
+            to=config.max_cpu if config.max_cpu != None else 5,
+            increment=1,
+            textvariable=self._cpu_count
+        )
+        self._cpu_count_input.pack(side=tk.BOTTOM,padx=30)
+
+        # controls for the app
         self._buttons_box = tk.Frame(self)
         self._buttons_box.pack(side=tk.BOTTOM,pady=50)
 
         self._file_generator_btn = tk.Button(self._buttons_box,text='generate random file',command=lambda:self._save_file())
-        self._file_creator_btn = tk.Button(self._buttons_box,text='manually cration',command=lambda:print('ok'))
+        self._stop_generation_btn = tk.Button(self._buttons_box,text='Stop file generation',command=lambda:self._stop_writing(self._file))
 
         self._file_generator_btn.pack(side=tk.LEFT,pady=10,padx=10)
-        self._file_creator_btn.pack(side=tk.RIGHT,pady=10,padx=10)
+        self._stop_generation_btn.pack(side=tk.LEFT,padx=10,pady=10)
 
         self.mainloop()
 
         pass
 
-    def _save_file(self,path=''):
+    def _check_writing_process(self,file:str):
+        if os.path.exists(f'{file}.lock') or self._subprocess != None:
+            self.after(1,lambda:self._check_writing_process(file))
+            pass
+        else:
+            self._writing = False
+            pass
+        pass
+
+    def _save_file(self):
         if not self._validate_params():
             messagebox.showerror('Invalid arguments','<Min chars count> must be less than <Max chars count>')
             pass
         else:
-            self._generator.min_length = self._min_chars_count.get()
-            self._generator.max_length = self._max_chars_count.get()
+            min_ = str(self._min_chars_count.get())
+            max_ = str(self._max_chars_count.get())
+            count = str(self._lines_count.get())
+            cpu_count = str(self._cpu_count.get())
             file = filedialog.asksaveasfilename()
+            self._file = file
             self._progress_bar = ttk.Progressbar(
                 self,
                 orient=tk.HORIZONTAL,
-                mode='determinate',
-                length=300,
-                maximum=self._lines_count.get()
-            )   
+                mode='indeterminate',
+                length=300
+            )
             self._progress_bar.pack(side=tk.TOP)
-            self._process = Thread(target=lambda:self._write_strings(file),daemon=True)
-            self._process.start()
+            if sys.platform.startswith('win') or sys.platform.startswith('cygwin'):
+                self._subprocess = subprocess.Popen(['python','writing_subrutine.py',file,self._pattern,min_,max_,count,cpu_count])
+                pass
+            elif sys.platform.startswith('linux'):
+                self._subprocess = subprocess.Popen(['python3','writing_subrutine.py',file,self._pattern,min_,max_,count,cpu_count])
+                pass
+            else:
+                pass
+            self._writing = True
+            self.after(1,lambda:self._check_writing_process(file))
             pass
         pass
 
     def _validate_params(self):
         return self._min_chars_count.get() < self._max_chars_count.get()
 
-    def _generate_strings(self,count:int):
-        print('hebra comenzada')
-        text = ''
-        for string in self._generator.GenerateStrings(count):
-            text += string + '\n'
-            pass
-        print('hebra terminada')
-        self._lock.acquire()
-        self._strings += text
-        self._lock.release()
-        
-
-    def _write_strings(self,file:str):
-        self._writing = True
-        text = ''
-        threads = []
-        for _ in range(self._lines_count.get() // 10000):
-            threads.append(Thread(target=lambda:self._generate_strings(10000),daemon=True))
-            pass
-        threads.append(Thread(target=lambda:self._generate_strings(self._lines_count.get() - (self._lines_count.get() // 10000) * 10000)))
-        for t in threads:
-            t.start()
-            pass
-
-        for t in threads:
-            t.join()
-            pass
-
-            # if self._progress_bar != None:
-                #     self._progress_bar.step(1)
-            #     pass
-        text = text[:len(text) - 1]
-        writefile(file,text)
-        self._writing = False
-        self._progress_bar.destroy()
-        self._progress_bar = None
-        pass
-
-    def _check_writing_process(self):
-        while True:
-            if self._process != None and not self._process.is_alive():
-                self._process.join()
-                self._process = None
+    def _stop_writing(self,file:str):
+        if self._subprocess != None:
+            for pid in get_children_pids(self._subprocess.pid):
+                os.kill(pid,signal.SIGTERM)
                 pass
-            time.sleep(1)
+            self._subprocess.kill()
+            self._subprocess = None
+            removefile(f'{file}.lock')
+            if os.path.exists(file):
+                removefile(file)
+                pass
+            pass
+        if self._progress_bar != None:
+            self._progress_bar.destroy()
+            self._progress_bar = None
             pass
         pass
 
     def _on_close(self):
         if self._writing:
             if messagebox.askyesno('Salir','Desea detener el proceso de escritura?'):
-                if self._progress_bar != None:
-                    self._progress_bar.destroy()
-                    self._progress_bar = None
-                    pass
+                self._stop_writing(self._file)
+                self._file = ''
                 self.destroy()
                 pass
             pass
@@ -182,3 +188,25 @@ class MainWindow(tk.Tk):
         pass
 
     pass
+
+def get_children_pids(pid:int):
+    try:
+        if  platform.system() == 'Windows':
+            output = subprocess.check_output(
+                f'wmic process where (ParentProcessId={pid}) get ProcessId',
+                shell=True,
+                stderr=subprocess.DEVNULL
+            ).decode().strip()
+            pids = [int(line) for line in output.split('\n')[1:] if line.strip()]
+            return pids
+        elif platform.system() == 'Linux':
+            output = subprocess.check_output(
+                [f'pgrep','-P',str(pid)],
+                stderr=subprocess.DEVNULL
+            ).decode().strip()
+            return list(map(int,output.split())) if output else []
+        else:
+            return []
+        pass
+    except subprocess.CalledProcessError as ex:
+        return []

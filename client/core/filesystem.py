@@ -37,7 +37,23 @@ def readfile(filepath:str):
         raise Exception(f'The given root {filepath} doesn\'t exists')
     if not validate_path(filepath):
         raise Exception(f'The specified {filepath} doesn\'t exists')
+    if not os.path.isfile(filepath):
+        raise Exception(f'The specified {filepath} is not a file')
     reader = open(filepath,'r')
     content = reader.read()
     reader.close()
     return content
+
+def removefile(filepath:str):
+    '''
+    remove the file
+
+    raise exception if filepath doesn't exists
+    '''
+    if not validate_path(pathlib.Path(filepath).parent):
+        raise Exception(f'The given root {filepath} doesn\'t exists')
+    if not validate_path(filepath):
+        raise Exception(f'The specified {filepath} doesn\'t exists')
+    if not os.path.isfile(filepath):
+        raise Exception(f'The specified {filepath} is not a file')
+    os.remove(filepath)
