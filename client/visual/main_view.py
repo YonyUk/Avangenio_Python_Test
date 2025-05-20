@@ -4,18 +4,24 @@ from tkinter import filedialog
 from visual.appconfig import AppConfig
 from tkinter import messagebox
 import sys
-import subprocess
 import os
 import platform
 import signal
-from core import removefile
+from core import removefile,StringGenerator
+from multiprocessing import Value,Process,Lock,cpu_count,Array
+import time
 
 class MainWindow(tk.Tk):
 
     _progress_bar = None
-    _subprocess = None
-    _writing = False
+    _writing = Value('i',0)
     _file = ''
+    _cpus = cpu_count()
+    _lock = Lock()
+    _generator = None
+    _process = None
+    _process_in_course = None
+    _progress = Value('i',0)
 
     def __init__(self,config:AppConfig,*args,**kwargs):
         super().__init__(*args,**kwargs)
@@ -23,6 +29,7 @@ class MainWindow(tk.Tk):
         self.geometry(config.size if config.size != None else '800x600')
         self.title('MainView')
         self.protocol('WM_DELETE_WINDOW',lambda:self._on_close())
+        
         # container for the params controls
         self._params_box = tk.Frame(self)
         self._params_box.pack(side=tk.TOP,pady=50)
@@ -104,7 +111,7 @@ class MainWindow(tk.Tk):
         self._buttons_box.pack(side=tk.BOTTOM,pady=50)
 
         self._file_generator_btn = tk.Button(self._buttons_box,text='generate random file',command=lambda:self._save_file())
-        self._stop_generation_btn = tk.Button(self._buttons_box,text='Stop file generation',command=lambda:self._stop_writing(self._file))
+        self._stop_generation_btn = tk.Button(self._buttons_box,text='Stop file generation',command=lambda:self._stop_file_generation())
 
         self._file_generator_btn.pack(side=tk.LEFT,pady=10,padx=10)
         self._stop_generation_btn.pack(side=tk.LEFT,padx=10,pady=10)
@@ -113,12 +120,21 @@ class MainWindow(tk.Tk):
 
         pass
 
-    def _check_writing_process(self,file:str):
-        if os.path.exists(f'{file}.lock') or self._subprocess != None:
-            self.after(1,lambda:self._check_writing_process(file))
+    def _check_writing_process(self):
+        # checks for the end of the writing process and update the progresbarr status
+        if self._writing.value == 1:
+            self._progress_bar['value'] = self._progress.value
+            self.after(1,lambda:self._check_writing_process())
             pass
         else:
-            self._writing = False
+            if self._process != None:
+                self._process.join()
+                self._process = None
+                pass
+            if self._progress_bar != None:
+                self._progress_bar.destroy()
+                self._progress_bar = None
+                pass
             pass
         pass
 
@@ -127,60 +143,165 @@ class MainWindow(tk.Tk):
             messagebox.showerror('Invalid arguments','<Min chars count> must be less than <Max chars count>')
             pass
         else:
-            min_ = str(self._min_chars_count.get())
-            max_ = str(self._max_chars_count.get())
-            count = str(self._lines_count.get())
-            cpu_count = str(self._cpu_count.get())
-            file = filedialog.asksaveasfilename()
-            self._file = file
+            self._progress.value = 0
+            self._file = filedialog.asksaveasfilename()
             self._progress_bar = ttk.Progressbar(
                 self,
                 orient=tk.HORIZONTAL,
-                mode='indeterminate',
-                length=300
+                mode='determinate',
+                length=300,
+                maximum=self._lines_count.get()
             )
+            self._writing.value = 1
             self._progress_bar.pack(side=tk.TOP)
-            if sys.platform.startswith('win') or sys.platform.startswith('cygwin'):
-                self._subprocess = subprocess.Popen(['python','writing_subrutine.py',file,self._pattern,min_,max_,count,cpu_count])
+            # to keep safe the multiprocessing process
+            if __name__ == '__mp_main__':
+                return
+            # create the stack of process in course
+            with self._lock:
+                self._process_in_course = Array('i',self._cpus*self._cpu_count.get())
                 pass
-            elif sys.platform.startswith('linux'):
-                self._subprocess = subprocess.Popen(['python3','writing_subrutine.py',file,self._pattern,min_,max_,count,cpu_count])
+            # spawn the writing process
+            self._process = Process(target=lambda:self._start_writing(),name='writing_process')
+            self._process.start()
+            # checks for the end of the writing process
+            self.after(1,lambda:self._check_writing_process())
+            pass
+        pass
+
+    def _start_writing(self):
+        # starts the writing process in the file
+
+        # limit of strings by cpu
+        lines_by_process = 10000
+        # total of strings to write
+        total = self._lines_count.get()
+        # if there is less than 'lines_by_process' strings to write
+        if total < lines_by_process:
+            # share the task bettwen all the cpu
+            lines_by_process = total // (self._cpu_count.get()*self._cpus)
+            pass
+        # calculate the amount of process needed to write all the strings
+        processes_needed = self._lines_count.get() // lines_by_process
+        # adds one more process if needed
+        if processes_needed*lines_by_process < self._lines_count.get():
+            processes_needed += 1
+            pass
+        # create the string generator
+        self._generator = StringGenerator(
+            pattern=self._pattern,
+            min_length=self._min_chars_count.get(),
+            max_length=self._max_chars_count.get()
+        )
+        # to keep safe the multiprocessing process
+        if __name__ == '__mp_main__':
+            return
+        # while there are process to do
+        while processes_needed > 0:
+            # process stack
+            processes = []
+            for i in range(min(self._cpus*self._cpu_count.get(),processes_needed)):
+                # total of strings for this process
+                p_total = lines_by_process if total > lines_by_process else total
+                p = Process(target=lambda:self._write_strings(p_total),name=f'p{i}')
+                # update the total
+                total -= p_total
+                processes_needed -= 1
+                # spawn the process
+                p.start()
+                processes.append(p)
                 pass
-            else:
+            # acquire the control over the stack of process in course
+            with self._lock:
+                # updates the pids of the process in course
+                for i in range(len(processes)):
+                    self._process_in_course[i] = processes[i].pid
+                    pass
                 pass
-            self._writing = True
-            self.after(1,lambda:self._check_writing_process(file))
+            # wait for the end of the process
+            for p in processes:
+                if p != None:
+                    p.join()
+                pass
+            with self._lock:
+                for i in range(len(processes)):
+                    self._process_in_course[i] = 0
+                    pass
+                pass
+            pass
+        with self._lock:
+            if self._process_in_course != None:
+                self._process_in_course = None
+                pass
+            pass
+        self._writing.value = 0
+        pass
+
+    def _write_strings(self,count:int):
+        text = ''
+        counter = 0
+        for word in self._generator.GenerateStrings(count):
+            text += f'{word}\n'
+            # to keep updated the global progressbar
+            counter += 1
+            if counter >= 5000:
+                # block the resource to evade race's conditions
+                with self._lock:
+                    self._progress.value += counter
+                    pass
+                counter = 0
+                pass
+            pass
+        with self._lock:
+            self._progress.value += counter
+            # adds the new strings to the file
+            with open(self._file,'a') as writer:
+                writer.write(text)
+                pass
             pass
         pass
 
     def _validate_params(self):
         return self._min_chars_count.get() < self._max_chars_count.get()
 
-    def _stop_writing(self,file:str):
-        if self._subprocess != None:
-            for pid in get_children_pids(self._subprocess.pid):
-                os.kill(pid,signal.SIGTERM)
-                pass
-            self._subprocess.kill()
-            self._subprocess = None
-            removefile(f'{file}.lock')
-            if os.path.exists(file):
-                removefile(file)
+    def _stop_process_in_course(self):
+        # stop all the writing process
+        self._process.kill()
+        if self._process != None:
+            self._process = None
+        with self._lock:
+            # stop the subprocess
+            if self._process_in_course != None:
+                for process in self._process_in_course:
+                    if process > 0:
+                        os.kill(process,signal.SIGTERM)
+                        pass
+                    pass
+                self._process_in_course = None
                 pass
             pass
-        if self._progress_bar != None:
-            self._progress_bar.destroy()
-            self._progress_bar = None
+        # remove the file if exists
+        if os.path.exists(self._file):
+            removefile(self._file)
+            pass
+        self._file = ''
+        pass
+
+    def _stop_file_generation(self):
+        if self._writing.value == 1:
+            if messagebox.askyesno('Writing in process','There is a process in progress'):
+                self._stop_process_in_course()
+                pass
+            self._writing.value = 0
             pass
         pass
 
     def _on_close(self):
-        if self._writing:
-            if messagebox.askyesno('Salir','Desea detener el proceso de escritura?'):
-                self._stop_writing(self._file)
-                self._file = ''
-                self.destroy()
+        if self._writing.value == 1:
+            if messagebox.askyesno('Writing in process','There is a process in progress'):
+                self._stop_process_in_course()
                 pass
+            self._writing.value = 0
             pass
         else:
             self.destroy()
@@ -188,25 +309,3 @@ class MainWindow(tk.Tk):
         pass
 
     pass
-
-def get_children_pids(pid:int):
-    try:
-        if  platform.system() == 'Windows':
-            output = subprocess.check_output(
-                f'wmic process where (ParentProcessId={pid}) get ProcessId',
-                shell=True,
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            pids = [int(line) for line in output.split('\n')[1:] if line.strip()]
-            return pids
-        elif platform.system() == 'Linux':
-            output = subprocess.check_output(
-                [f'pgrep','-P',str(pid)],
-                stderr=subprocess.DEVNULL
-            ).decode().strip()
-            return list(map(int,output.split())) if output else []
-        else:
-            return []
-        pass
-    except subprocess.CalledProcessError as ex:
-        return []
