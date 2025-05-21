@@ -63,11 +63,18 @@ class Server:
                 'Status': Status.ERROR,
                 'StatusMessage':msg
             }
-        for service in self._services.values():
-            operations = [s[0] for s in service.services]
-            if request.Operation in operations:
-                return service.Handle(request)
+        try:
+            for service in self._services.values():
+                operations = [s[0] for s in service.services]
+                if request.Operation in operations:
+                    return service.Handle(request)
+                pass
             pass
+        except Exception as ex:
+            return {
+                'Status':Status.ERROR,
+                'StatusMessage':f'{ex}'
+            }
         return {
             'Status':Status.ERROR,
             'StatusMessage':f'No handler implemented for operation <{request.Operation}>'

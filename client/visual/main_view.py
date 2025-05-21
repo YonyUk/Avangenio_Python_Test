@@ -190,22 +190,44 @@ class MainWindow(tk.Tk):
     def _send_file(self):
         file = filedialog.askopenfilename()
         request = Request(Operation=ServerOperation.START_FILE_PONDERATION)
-        response = sendto(self._config.host,self._config.port,request)
-        if response.Status != Status.OK:
-            messagebox.showerror('Server error',response.StatusMessage)
+        response = None
+        try:
+            response = sendto(self._config.host,self._config.port,request)
+            if response.Status != Status.OK:
+                messagebox.showerror('Server Error',response.StatusMessage)
+                return
+            pass
+        except Exception as ex:
+            messagebox.showerror('Connection Error',f'{ex}')
             return
         request = Request(Operation=ServerOperation.SEND_FILE)
         with open(file,'r') as reader:
             words = [word for word in map(lambda string:string.replace('\n',''),reader.readlines()) if len(word) > 0]
             request.Body = {'words':words}
-            response = sendto(self._config.host,self._config.port,request)
+            try:
+                response = sendto(self._config.host,self._config.port,request)
+                if response.Status != Status.OK:
+                    messagebox.showerror('Server Error',response.StatusMessage)
+                    return
+                pass
+            except Exception as ex:
+                messagebox.showerror('Connection Error',f'{ex}')
+                return
             pass
         request = Request(Operation=ServerOperation.PONDERATION)
         request.Body = {
             'process_by_cpu':self._cpu_count.get(),
             'strings_by_process':self._config.max_strings_by_process
         }
-        response = sendto(self._config.host,self._config.port,request)
+        try:
+            response = sendto(self._config.host,self._config.port,request)
+            if response.Status != Status.OK:
+                messagebox.showerror('Server Error',response.StatusMessage)
+                return
+            pass
+        except Exception as ex:
+            messagebox.showerror('Connection Error',f'{ex}')
+            return
         dot_extension = file.rindex('.')
         with open(f'{file[:dot_extension]}_result.txt','w') as writer:
             for r in response.Body['results']:
@@ -213,13 +235,18 @@ class MainWindow(tk.Tk):
                 pass
             pass
         request = Request(Operation=ServerOperation.END_FILE_PONDERATION)
-        response = sendto(self._config.host,self._config.port,request)
-        if response.Status != Status.OK:
-            messagebox.showerror('Server error',response.StatusMessage)
+        try:
+            response = sendto(self._config.host,self._config.port,request)
+            if response.Status != Status.OK:
+                messagebox.showerror('Server error',response.StatusMessage)
+                pass
+            else:
+                messagebox.showinfo('Operation done',f'Analisis completado en {response.Body["time"]}')
+                pass
             pass
-        else:
-            messagebox.showinfo('Operation done',f'Analisis completado en {response.Body["time"]}')
-            pass
+        except Exception as ex:
+            messagebox.showerror('Connection Error',f'{ex}')
+            return
         pass
 
     def _check_writing_process(self):
