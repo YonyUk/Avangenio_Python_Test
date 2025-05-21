@@ -5,6 +5,7 @@
         "pattern":"\\w+[ ]\\w+[ ]\\w+[ ]\\w+[ ]?\\w+[ ]?\\w+",
         "min_chars":50,
         "max_chars":100,
+        "max_strings_by_process":10000,
         "interface":{
             "size":"1000x800",
             "input_bg":"#ffffff",

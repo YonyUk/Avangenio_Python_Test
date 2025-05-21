@@ -1,23 +1,27 @@
-from protocol.status import Status
 '''
-response
+request
 
-Implementation for the response abstraction for the communication bettwen the server and the client
+Implementation for the request abstraction for the communication bettwen the server and the client
 '''
 import json
+from .server_operation import ServerOperation
 
-class Response(BaseResponse):
+class Request:
+    
     '''
-    Response
+    Request
 
-    response implementation
+    request implementation
     '''
-
     _attributes = {}
 
     def __init__(self,**headers):
-        if not 'Status' in headers.keys():
-            raise Exception('<Response> must have a "Status" field')
+        if 'Status' in headers.keys():
+            raise Exception('<Request> has not a "Status" field')
+        if not 'Operation' in headers.keys():
+            raise Exception('<Request> must have a "Operation" field')
+        if not headers['Operation'] in [op for op in ServerOperation]:
+            raise Exception('"Operation" field must be a <enum ServerOperation> member')
         for key in headers.keys():
             self._attributes[key] = headers[key]
             pass
@@ -33,8 +37,8 @@ class Response(BaseResponse):
     def __setattr__(self,attr,value):
         if attr == 'headers':
             raise Exception("Field 'headers' is readonly")
-        if attr == 'Status' and type(value) != Status:
-            raise Exception("The 'Status' property must be an <enum 'Status'>")
+        if attr == 'Status':
+            raise Exception("There's not exists the property 'Status' for this class")
         if attr == 'Body':
             if not type(value) == dict:
                 raise Exception("'Body' property most be a dictionary")
@@ -43,7 +47,7 @@ class Response(BaseResponse):
                 pass
             except Exception as ex:
                 raise Exception("The 'Body' most be serializable")
-        if type(value) != int and type(value) != str:
+        elif type(value) != int and type(value) != str:
             raise Exception("All the properties most be serializables")
         self._attributes[attr] = value
         pass
@@ -57,10 +61,13 @@ class Response(BaseResponse):
 
     def __repr__(self):
         return str(self)
+    
+    def to_dict(self):
+        return self._attributes
 
     def headers(self):
         '''
-        the headers inside this response
+        the headers inside this request
         '''
         return self._attributes.keys()
 

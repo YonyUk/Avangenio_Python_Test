@@ -4,7 +4,11 @@ class ServerOperation(str,Enum):
 
     PONDERATION = 'STRING_PONDERATION'
 
-    SPECIFICATIONS = 'SERVER_SPECIFICATIONS'
+    START_FILE_PONDERATION = 'START_FILE_PONDERATION'
+
+    END_FILE_PONDERATION = 'END_FILE_PONDERATION'
+
+    SEND_FILE = 'SEND_FILE'
     
     def __str__(self):
         return str(self.value)

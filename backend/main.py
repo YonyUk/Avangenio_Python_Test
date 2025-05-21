@@ -30,8 +30,7 @@ if __name__ == '__main__':
     server = Server(host,port,**config)
 
     # adding the services
-    server['ponderation'] = WordPonderationService
-    server['specifications'] = SpecificationsService(**config)
+    server['ponderation'] = WordPonderationService()
 
     # runing the application
     server.run()

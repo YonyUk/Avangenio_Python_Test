@@ -1,10 +1,15 @@
 '''
 server
 '''
+import sys
+import os
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 import socket
 import threading
 from protocol import ServerOperation,Request,Status
-from tools import serialize,dserialize
+from tools import serialize,dserialize,sendto
 from service import Service
 import time
 import logging
@@ -69,18 +74,16 @@ class Server:
         }
 
     def _process_client_in_background(self,conn:socket.socket):
-        data = b''
-        conn.setblocking(False)
-        temp = conn.recv(self._buffer_size)
-        while temp != b'':
-            data += temp
+        request = conn.recv(self._buffer_size)
+        while True:
             try:
-                temp = conn.recv(self._buffer_size)
-                pass
-            except BlockingIOError as ex:
+                request = Request(**dserialize(request))
                 break
+            except Exception as ex:
+                request += conn.recv(self._buffer_size)
+                pass
             pass
-        request = Request(**dserialize(data))
+        
         response = self._handle_request(request)
         conn.sendall(serialize(**response))           
         conn.close()
@@ -122,6 +125,7 @@ class Server:
         if not isinstance(value,Service):
             raise Exception("The given value must be a Service's class instance")
         self._services[value] = value
+        pass
 
     def __getitem__(self,item:str):
         if type(item) != str:
@@ -132,5 +136,6 @@ class Server:
         if type(item) != str:
             raise Exception("Expected a string")
         del self._services[item]
+        pass
 
     pass

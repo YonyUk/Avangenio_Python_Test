@@ -1,22 +1,23 @@
+from protocol.status import Status
 '''
-request
+response
 
-Implementation for the request abstraction for the communication bettwen the server and the client
+Implementation for the response abstraction for the communication bettwen the server and the client
 '''
 import json
 
-class Request:
-    
+class Response:
     '''
-    Request
+    Response
 
-    request implementation
+    response implementation
     '''
+
     _attributes = {}
 
     def __init__(self,**headers):
-        if 'Status' in headers.keys():
-            raise Exception('<Request> has not a "Status" field')
+        if not 'Status' in headers.keys():
+            raise Exception('<Response> must have a "Status" field')
         for key in headers.keys():
             self._attributes[key] = headers[key]
             pass
@@ -32,8 +33,8 @@ class Request:
     def __setattr__(self,attr,value):
         if attr == 'headers':
             raise Exception("Field 'headers' is readonly")
-        if attr == 'Status':
-            raise Exception("There's not exists the property 'Status' for this class")
+        if attr == 'Status' and not value in [s for s in Status]:
+            raise Exception("The 'Status' property must be an <enum 'Status'>")
         if attr == 'Body':
             if not type(value) == dict:
                 raise Exception("'Body' property most be a dictionary")
@@ -42,7 +43,7 @@ class Request:
                 pass
             except Exception as ex:
                 raise Exception("The 'Body' most be serializable")
-        elif type(value) != int and type(value) != str:
+        if type(value) != int and type(value) != str:
             raise Exception("All the properties most be serializables")
         self._attributes[attr] = value
         pass
@@ -57,9 +58,12 @@ class Request:
     def __repr__(self):
         return str(self)
 
+    def to_dict(self):
+        return self._attributes
+
     def headers(self):
         '''
-        the headers inside this request
+        the headers inside this response
         '''
         return self._attributes.keys()
 

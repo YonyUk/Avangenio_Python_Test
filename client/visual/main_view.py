@@ -12,6 +12,10 @@ from multiprocessing import Value,Process,Lock,cpu_count,Array
 import time
 import re
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+from protocol import ServerOperation,Request,Response,Status
+from tools import sendto
+
 class MainWindow(tk.Tk):
 
     _progress_bar = None
@@ -25,6 +29,7 @@ class MainWindow(tk.Tk):
     _progress = Value('i',0)
 
     def __init__(self,config:AppConfig,*args,**kwargs):
+        self._config = config
         super().__init__(*args,**kwargs)
         self._pattern = config.pattern
         if 'size' in config.interface.keys():
@@ -184,7 +189,37 @@ class MainWindow(tk.Tk):
 
     def _send_file(self):
         file = filedialog.askopenfilename()
-        print(file)
+        request = Request(Operation=ServerOperation.START_FILE_PONDERATION)
+        response = sendto(self._config.host,self._config.port,request)
+        if response.Status != Status.OK:
+            messagebox.showerror('Server error',response.StatusMessage)
+            return
+        request = Request(Operation=ServerOperation.SEND_FILE)
+        with open(file,'r') as reader:
+            words = [word for word in map(lambda string:string.replace('\n',''),reader.readlines()) if len(word) > 0]
+            request.Body = {'words':words}
+            response = sendto(self._config.host,self._config.port,request)
+            pass
+        request = Request(Operation=ServerOperation.PONDERATION)
+        request.Body = {
+            'process_by_cpu':self._cpu_count.get(),
+            'strings_by_process':self._config.max_strings_by_process
+        }
+        response = sendto(self._config.host,self._config.port,request)
+        dot_extension = file.rindex('.')
+        with open(f'{file[:dot_extension]}_result.txt','w') as writer:
+            for r in response.Body['results']:
+                writer.write(f'{r}\n')
+                pass
+            pass
+        request = Request(Operation=ServerOperation.END_FILE_PONDERATION)
+        response = sendto(self._config.host,self._config.port,request)
+        if response.Status != Status.OK:
+            messagebox.showerror('Server error',response.StatusMessage)
+            pass
+        else:
+            messagebox.showinfo('Operation done',f'Analisis completado en {response.Body["time"]}')
+            pass
         pass
 
     def _check_writing_process(self):
@@ -240,7 +275,7 @@ class MainWindow(tk.Tk):
         # starts the writing process in the file
 
         # limit of strings by cpu
-        lines_by_process = 10000
+        lines_by_process = self._config.max_strings_by_process
         # total of strings to write
         total = self._lines_count.get()
         # if there is less than 'lines_by_process' strings to write
@@ -249,9 +284,9 @@ class MainWindow(tk.Tk):
             lines_by_process = total // (self._cpu_count.get()*self._cpus)
             pass
         # calculate the amount of process needed to write all the strings
-        processes_needed = self._lines_count.get() // lines_by_process
+        processes_needed = total // lines_by_process
         # adds one more process if needed
-        if processes_needed*lines_by_process < self._lines_count.get():
+        if processes_needed*lines_by_process < total:
             processes_needed += 1
             pass
         # create the string generator
@@ -301,26 +336,25 @@ class MainWindow(tk.Tk):
                 self._process_in_course = None
                 pass
             pass
+        text = ''
+        with open(self._file,'r') as reader:
+            text = reader.read()
+            pass
+        if text.endswith('\n'):
+            with open(self._file,'w') as writer:
+                writer.write(text[:len(text) - 1])
+                pass
+            pass
         self._writing.value = 0
         pass
 
     def _write_strings(self,count:int):
         text = ''
-        counter = 0
         for word in self._generator.GenerateStrings(count):
             text += f'{word}\n'
-            # to keep updated the global progressbar
-            counter += 1
-            if counter >= 5000:
-                # block the resource to evade race's conditions
-                with self._lock:
-                    self._progress.value += counter
-                    pass
-                counter = 0
-                pass
+            self._progress.value += 1
             pass
         with self._lock:
-            self._progress.value += counter
             # adds the new strings to the file
             with open(self._file,'a') as writer:
                 writer.write(text)
