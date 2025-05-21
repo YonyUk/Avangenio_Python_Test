@@ -36,6 +36,7 @@ import json
 
 if __name__ == '__main__':
 
+    # loads the app configuration
     config = None
     if os.path.exists('config.json'):
         with open('config.json','r') as reader:
@@ -43,6 +44,8 @@ if __name__ == '__main__':
             pass
         pass
 
+    # create the app
     app = App(**config)
 
+    # run the app
     app.run()

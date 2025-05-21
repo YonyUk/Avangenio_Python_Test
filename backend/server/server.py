@@ -1,5 +1,7 @@
 '''
 server
+
+A configurable server where services can be added for handle differents request
 '''
 import sys
 import os
@@ -53,11 +55,13 @@ class Server:
         pass
     
     def _filt_request(self,request:Request):
+        # check that request has the right form
         if request.Operation == None:
             return False,'Bad formed request: No <Operation> header found'
         return True,'OK'
 
     def _handle_request(self,request:Request):
+        # handle the request
         check,msg = self._filt_request(request)
         if not check:
             return {
@@ -65,6 +69,7 @@ class Server:
                 'StatusMessage':msg
             }
         try:
+            # look for a service that respond to the request
             for service in self._services.values():
                 operations = [s[0] for s in service.services]
                 if request.Operation in operations:
@@ -82,7 +87,9 @@ class Server:
         }
 
     def _process_client_in_background(self,conn:socket.socket):
+        # process the request in background
         request = conn.recv(self._buffer_size)
+        # read the socket while the request is incomplete
         while True:
             try:
                 request = Request(**dserialize(request))
@@ -98,6 +105,7 @@ class Server:
         pass
 
     def _kill_deads_clients_threads(self):
+        # look for zombies threads and kill them
         while True:
             deads_threads = [t for t in self._clients_process if not t.is_alive()]
             self._clients_process = [t for t in self._clients_process if t.is_alive()]
@@ -106,7 +114,6 @@ class Server:
                 pass
             time.sleep(0.5)
             pass
-
 
     def run(self):
         '''
@@ -120,14 +127,19 @@ class Server:
         logging.info(f'buffer size: {self._buffer_size}')
         while True:
             conn,addr = self._server.accept()
+            # handle the request on one thread
             thread = threading.Thread(name=f"client at {addr} request process",target=self._process_client_in_background,daemon=True,args=(conn,))
             thread.start()        
+            # adds the thread to the threads's stack to kill it when it finish
             self._clients_process.append(thread)
             pass
 
         pass
 
     def __setitem__(self,item:str,value:Service):
+        '''
+        adds a new service to this server instance and look for it's config file to configure it
+        '''
         if type(item) != str:
             raise Exception("Must be indexed over strings")
         if not isinstance(value,Service):
@@ -144,11 +156,17 @@ class Server:
         pass
 
     def __getitem__(self,item:str):
+        '''
+        return the service with given name
+        '''
         if type(item) != str:
             raise Exception("Expected a string")
         return self._services[item]
 
     def __delitem__(self,item:str):
+        '''
+        delete the service with the given name
+        '''
         if type(item) != str:
             raise Exception("Expected a string")
         del self._services[item]

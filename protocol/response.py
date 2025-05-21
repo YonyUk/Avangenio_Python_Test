@@ -59,6 +59,9 @@ class Response:
         return str(self)
 
     def to_dict(self):
+        '''
+        return a dictionary representation of this response
+        '''
         return self._attributes
 
     def headers(self):

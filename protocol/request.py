@@ -63,6 +63,9 @@ class Request:
         return str(self)
     
     def to_dict(self):
+        '''
+        return a dictionary representation of this request
+        '''
         return self._attributes
 
     def headers(self):

@@ -1,3 +1,8 @@
+'''
+server operations
+
+enum of all the operations that the server suppourt
+'''
 from enum import Enum
 
 class ServerOperation(str,Enum):

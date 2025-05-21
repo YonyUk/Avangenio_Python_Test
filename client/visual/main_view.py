@@ -189,9 +189,11 @@ class MainWindow(tk.Tk):
         pass
 
     def _send_file(self):
+        # send the file to the server
         file = filedialog.askopenfilename()
         request = Request(Operation=ServerOperation.START_FILE_PONDERATION)
         response = None
+        # handle the network's errors
         try:
             response = sendto(self._config.host,self._config.port,request)
             if response.Status != Status.OK:
@@ -203,8 +205,10 @@ class MainWindow(tk.Tk):
             return
         request = Request(Operation=ServerOperation.SEND_FILE)
         with open(file,'r') as reader:
+            # send all the words to the server
             words = [word for word in map(lambda string:string.replace('\n',''),reader.readlines()) if len(word) > 0]
             request.Body = {'words':words}
+            # wait for the server response
             try:
                 response = sendto(self._config.host,self._config.port,request)
                 if response.Status != Status.OK:
@@ -216,6 +220,7 @@ class MainWindow(tk.Tk):
                 return
             pass
         request = Request(Operation=ServerOperation.PONDERATION)
+        # send the signal to the server to start the file's process
         request.Body = {
             'process_by_cpu':self._cpu_count.get(),
             'strings_by_process':self._config.max_strings_by_process
@@ -229,6 +234,7 @@ class MainWindow(tk.Tk):
         except Exception as ex:
             messagebox.showerror('Connection Error',f'{ex}')
             return
+        # create a file with the results
         dot_extension = file.rindex('.')
         with open(f'{file[:dot_extension]}_result.txt','w') as writer:
             for r in response.Body['results']:
@@ -273,6 +279,7 @@ class MainWindow(tk.Tk):
             messagebox.showerror('Invalid arguments','<Min chars count> must be less than <Max chars count>')
             pass
         else:
+            # create the progressbar
             self._progress.value = 0
             self._file = filedialog.asksaveasfilename()
             self._progress_bar = ttk.Progressbar(
@@ -378,10 +385,12 @@ class MainWindow(tk.Tk):
 
     def _write_strings(self,count:int):
         text = ''
+        # generate the words
         for word in self._generator.GenerateStrings(count):
             text += f'{word}\n'
             self._progress.value += 1
             pass
+        # lock the file to evade race conditions
         with self._lock:
             # adds the new strings to the file
             with open(self._file,'a') as writer:
@@ -417,6 +426,7 @@ class MainWindow(tk.Tk):
         pass
 
     def _stop_file_generation(self):
+        # stop the writing process
         if self._writing.value == 1:
             if messagebox.askyesno('Escritura en proceso','Desea detener el proceso de escritura?'):
                 self._stop_process_in_course()
@@ -426,7 +436,9 @@ class MainWindow(tk.Tk):
         pass
 
     def _on_close(self):
+        # handle the windows close event
         if self._writing.value == 1:
+            # if there is a writing process
             if messagebox.askyesno('Writing in process','There is a process in progress'):
                 self._stop_process_in_course()
                 pass
@@ -438,12 +450,14 @@ class MainWindow(tk.Tk):
         pass
 
     def _get_color_from_text(self,text:str):
+        # return color code
         if text.lower().startswith('rgb'):
             r,g,b = re.findall('\d+',text)
             return self._rgb_to_hex(int(r),int(g),int(b))
         return text
 
     def _rgb_to_hex(self,r:int,g:int,b:int):
+        # return the hex representation for an rgb color
         exception_msg = 'the values most be in range 0-255'
         if r < 0 or r > 255:
             raise ValueError(exception_msg)

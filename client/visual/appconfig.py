@@ -1,9 +1,10 @@
 '''
 appconfig
+
+configuration for the visual side
 '''
 
 from configurable import Configurable
-from core import StringGenerator
 
 class AppConfig(Configurable):
     '''

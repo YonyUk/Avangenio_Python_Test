@@ -18,6 +18,9 @@ from multiprocessing import Process,Array,cpu_count
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s [%(threadName)s] %(levelname)s: %(message)s')
 
 class WordPonderationService(Service):
+    '''
+    The service for the word ponderation
+    '''
 
     _start_operation_time = None
     _words = []

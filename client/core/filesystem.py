@@ -57,3 +57,4 @@ def removefile(filepath:str):
     if not os.path.isfile(filepath):
         raise Exception(f'The specified {filepath} is not a file')
     os.remove(filepath)
+    pass

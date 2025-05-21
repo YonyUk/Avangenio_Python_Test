@@ -10,6 +10,9 @@ from core.regex_generator import RegexGenerator
 from configurable import Configurable
 
 class StringGenerator(Configurable):
+    '''
+    strings's generator for a given rules
+    '''
 
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
@@ -31,10 +34,3 @@ class StringGenerator(Configurable):
         pass
 
     pass
-
-def _validate(chars:list):
-    for c in chars:
-        if type(c) != str or len(c) != 1:
-            return False
-        pass
-    return True
