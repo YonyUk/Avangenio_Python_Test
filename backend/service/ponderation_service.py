@@ -13,18 +13,18 @@ from protocol import ServerOperation,Request,Status
 import re
 import logging
 import datetime
-from multiprocessing import Process,Lock,Array,cpu_count
+from multiprocessing import Process,Array,cpu_count
 
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s [%(threadName)s] %(levelname)s: %(message)s')
 
 class WordPonderationService(Service):
 
     _start_operation_time = None
-    _log = ''
     _words = []
-    _special_pattern = 'aa|AA|aA|Aa'
+    _special_pattern = ''
+    _special_value = 0
+    _full_match = False
     _results = None
-    _lock = Lock()
 
     def __init__(self):
         super().__init__()
@@ -64,7 +64,7 @@ class WordPonderationService(Service):
     
     def _ponderate_words(self,words:list):
         for word in words:
-            self._results[word] = get_word_ponderation(self._words[word],self._special_pattern)
+            self._results[word] = get_word_ponderation(self._words[word],self._special_pattern,self._special_value,self._full_match)
             pass
         pass
 
@@ -98,8 +98,6 @@ class WordPonderationService(Service):
         result = [f'{self._words[i]}: {self._results[i]}' for i in range(len(self._words))]
         self._words = None
         self._results = None
-        logging.info(self._log)
-        self._log = ''
         return {
             'Status':Status.OK,
             'StatusMessage':'OK',
@@ -108,17 +106,34 @@ class WordPonderationService(Service):
             }
         }
 
+    def configure(self,**kwargs):
+        if not 'special_pattern' in kwargs.keys():
+            raise Exception('No given value for the param \'special_pattern\'')
+        if 'special_value'in kwargs.keys() and not type(kwargs['special_value']) == float and not type(kwargs['special_value']) == int:
+            raise ValueError('\'special_value\' field must be a number')
+        if 'full_match' in kwargs.keys() and not type(kwargs['full_match']) == bool:
+            raise ValueError('\'full_match\' field must be boolean')
+        if not type(kwargs['special_pattern']) == str:
+            raise ValueError('\'special_pattern\' field must be string')
+        self._special_pattern = kwargs['special_pattern']
+        self._special_value = kwargs['special_value']
+        self._full_match = kwargs['full_match']
+        pass
+
     pass
 
-def get_word_ponderation(string:str,special_pattern:str):
+def get_word_ponderation(string:str,special_pattern:str,special_value:float,full_match:bool):
     # pattern of the text
     total_pattern = '\S'
     digits_pattern = '\d'
     whitespace_pattern = '\s'
 
+    if full_match and re.fullmatch(special_pattern,string) != None:
+        logging.info(f"\nPattern \"{special_pattern}\" rule detected with full matching >>> {string}\n")
+        return special_value
     if re.search(special_pattern,string) != None:
         logging.info(f"\nPattern \"{special_pattern}\" rule detected >>> {string}\n")
-        return 1000
+        return special_value
     digits_count = len(re.findall(digits_pattern,string))
     whitespace_count = len(re.findall(whitespace_pattern,string))
     chars_count = len(re.findall(total_pattern,string)) - digits_count

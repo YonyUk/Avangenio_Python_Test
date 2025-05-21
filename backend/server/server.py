@@ -12,6 +12,7 @@ from protocol import ServerOperation,Request,Status
 from tools import serialize,dserialize,sendto
 from service import Service
 import time
+import json
 import logging
 
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s [%(threadName)s] %(levelname)s: %(message)s')
@@ -132,6 +133,14 @@ class Server:
         if not isinstance(value,Service):
             raise Exception("The given value must be a Service's class instance")
         self._services[value] = value
+        if os.path.exists(f'{item}Config.json'):
+            with open(f'{item}Config.json','r') as reader:
+                config = json.loads(reader.read())
+                value.configure(**config)
+                pass
+            pass
+        else:
+            raise Exception(f'No configuration file given for <{item}> service: "{item}Config.json" file is required at {os.getcwd()}')
         pass
 
     def __getitem__(self,item:str):

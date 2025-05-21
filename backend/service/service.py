@@ -36,6 +36,8 @@ class Service:
 
     def Handle(self,request:Request):
         return self._handlers[request.Operation](request)
-        
+    
+    def configure(self,**kwargs):
+        raise NotImplementedError()
 
     pass

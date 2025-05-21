@@ -11,6 +11,7 @@ from core import removefile,StringGenerator
 from multiprocessing import Value,Process,Lock,cpu_count,Array
 import time
 import re
+import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from protocol import ServerOperation,Request,Response,Status
@@ -417,7 +418,7 @@ class MainWindow(tk.Tk):
 
     def _stop_file_generation(self):
         if self._writing.value == 1:
-            if messagebox.askyesno('Writing in process','There is a process in progress'):
+            if messagebox.askyesno('Escritura en proceso','Desea detener el proceso de escritura?'):
                 self._stop_process_in_course()
                 pass
             self._writing.value = 0
