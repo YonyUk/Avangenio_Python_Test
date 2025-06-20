@@ -1,5 +1,5 @@
 from server import Server
-from service import WordPonderationService,SpecificationsService
+from service import WordPonderationService
 import os
 import pathlib
 import json
